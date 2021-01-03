@@ -1,0 +1,33 @@
+#!/bin/sh
+DESTDIR="/usr/local/bin"
+XDG_VIDEOS_DIR=$HOME/vids #TODO ADJUST FOR PERSONAL USE HERE!
+DLARCHIVE="${XDG_VIDEOS_DIR:-$HOME/Videos}/.downloaded"
+DLLOC="${XDG_VIDEOS_DIR:-$HOME/Videos}"
+CHANNELSFILE="${XDG_VIDEOS_DIR:-$HOME/Videos}/.channels"
+BLACKLIST="${XDG_VIDEOS_DIR:-$HOME/Videos}/.blacklist"
+
+install(){
+	mkdir -p "$DLLOC" "$(dirname "$CHANNELSFILE")" "$(dirname "$DLARCHIVE")" "$(dirname "$BLACKLIST")" "$DESTDIR"
+	cp ripper "$DESTDIR/ripper"
+	[ ! -f "$CHANNELSFILE" ] && printf '#Add channels to add in this file\n#Format: https://www.youtube.com/channel/<channelId>' >  "$CHANNELSFILE"
+	[ ! -f "$BLACKLIST" ] && printf '#Add video URIs here (not just the IDs)' > "$BLACKLIST"
+	[ ! -f "$DLARCHIVE" ] && printf '#These videos will not be attempted to download again' > "$DLARCHIVE"
+}
+
+uninstall(){
+	rm "$DESTDIR/ripper"
+}
+
+clean(){
+	rm "$BLACKLIST" "$DLARCHIVE" "$CHANNELSFILE"
+}
+
+case "$1" in
+	"install") install;;
+	"uninstall") uninstall;;
+	"clean") clean;;
+	*) echo "installer [install] [uninstall] [clean]
+	install: installs application and adds needed files if not present
+	uninstall: remove application
+	clean: remove channels, archive, and blacklist files (use with caution!)";;
+ esac

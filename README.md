@@ -12,4 +12,9 @@ This part of the script is quite generic and could easily be adjusted for other 
 
 See the documentation inside the `ripper` file for more information.
 
-A Makefile will soon be added.
+## Install
+After `git clone`ing this repo, run the helper `installer`
+
+```sh
+./installer install
+```
