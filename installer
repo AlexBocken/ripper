@@ -1,5 +1,5 @@
 #!/bin/sh
-DESTDIR="/usr/local/bin"
+DESTDIR="$HOME/.local/bin"
 XDG_VIDEOS_DIR=$HOME/vids #TODO ADJUST FOR PERSONAL USE HERE!
 DLARCHIVE="${XDG_VIDEOS_DIR:-$HOME/Videos}/.downloaded"
 DLLOC="${XDG_VIDEOS_DIR:-$HOME/Videos}"
@@ -8,10 +8,10 @@ BLACKLIST="${XDG_VIDEOS_DIR:-$HOME/Videos}/.blacklist"
 
 install(){
 	mkdir -p "$DLLOC" "$(dirname "$CHANNELSFILE")" "$(dirname "$DLARCHIVE")" "$(dirname "$BLACKLIST")" "$DESTDIR"
-	cp ripper "$DESTDIR/ripper"
-	[ ! -f "$CHANNELSFILE" ] && printf '#Add channels to add in this file\n#Format: https://www.youtube.com/channel/<channelId>' >  "$CHANNELSFILE"
-	[ ! -f "$BLACKLIST" ] && printf '#Add video URIs here (not just the IDs)' > "$BLACKLIST"
-	[ ! -f "$DLARCHIVE" ] && printf '#These videos will not be attempted to download again' > "$DLARCHIVE"
+	cp -f ripper "$DESTDIR/ripper"
+	[ -f "$CHANNELSFILE" ] || printf '#Add channels in this file\n#Format: https://www.youtube.com/channel/<channelId>' >  "$CHANNELSFILE"
+	[ -f "$BLACKLIST" ] || printf '#Add video URIs here (not just the IDs)' > "$BLACKLIST"
+	[ -f "$DLARCHIVE" ] || printf '#These videos will not be attempted to download again' > "$DLARCHIVE"
 }
 
 uninstall(){
