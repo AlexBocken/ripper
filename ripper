@@ -1,0 +1,108 @@
+#!/bin/sh
+#A script that checks multiple youtube and bitchute channels for new videos to download via youtube-dl
+#This script works considerably faster than just giving youtube-dl a channel URI.
+#The YouTube implementation now uses a YoutubeData API v3 key to work more reliably.
+#This can be quite quota taxing, as each channel search is 1% of the allotted qutoa for the day.
+#-> checking n YT channels => n% of daily quota required to run this script
+#Keep this in mind when running it as a cronjob
+#Either insert this key in plain text below at the variable "APIKEY" or do it via ENV vars or a password manager
+#Since bitchute still doesn't have an API I'm using lynx to emulate a user.
+#This can limit the number of recent videos available. For a whole download of bitchute channels consider other methods first.
+#For youtube the videos per channel are limited to the last 500 uploaded videos. For the rest you can just use youtube-dl itself
+
+#needed if run as cronjob
+XDG_VIDEOS_DIR=$HOME/vids #TODO ADJUST FOR PERSONAL USE HERE!
+export XDG_VIDEOS_DIR
+DLARCHIVE="${XDG_VIDEOS_DIR:-$HOME/Videos}/.downloaded"
+DLLOC="${XDG_VIDEOS_DIR:-$HOME/Videos}"
+#FORMAT OF CHANNELSFILE:
+#Youtube: include the channel URI: https://www.youtube.com/channel/<channelId>
+#Bitchute: normal channel URI: https://www.bitchute.com/channel/<user>
+#Lines starting with '#' will be ignored in this file
+CHANNELSFILE="${XDG_VIDEOS_DIR:-$HOME/Videos}/.channels"
+BLACKLIST="${XDG_VIDEOS_DIR:-$HOME/Videos}/.blacklist"
+
+# Required to display notifications if run as a cronjob:
+DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
+export DBUS_SESSION_BUS_ADDRESS
+export DISPLAY=:0.0
+XDG_DATA_HOME=/home/alex/.local/share
+# Required to have pass work if run as cronjob
+export PASSWORD_STORE_GPG_OPTS="--homedir=$XDG_DATA_HOME/gnupg"
+export GTK2_RC_FILES="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-2.0/gtkrc-2.0"
+[ -d "$HOME/.local/share/password-store" ] && export PASSWORD_STORE_DIR="$HOME/.local/share/password-store"
+
+APIKEY="$(pass show Misc/Youtube\ Data\ API\ v3 | head -n1 )"
+LEGACYMODE=$1 #set to anything nonzero to ignore YT API
+
+[ -n "$LEGACYMODE" ] && printf "Using YT Legacy fallback mode...\nThis is less reliable than the API requests.\nOnly expect to find the last 5 videos or so per channel\n"
+if [ "$(pgrep -c ripper)" -gt 1 ]; then
+	echo "Ripper already running, exiting new instance..."
+	exit
+fi
+
+echo "Scanning for new Videos to download"
+
+
+##YOUTUBE
+echo "Scanning on Youtube..."
+IDs="$( grep 'youtube' "$CHANNELSFILE" | grep -v '^#' | grep 'channel' | sed 's/https:\/\/www\.youtube\.com\/channel\///')"
+not_correctly_formatted="$(grep 'youtube' "$CHANNELSFILE" | grep -v '^#' | grep -v 'https:\/\/www\.youtube\.com\/channel\/')"
+if [  -n "$not_correctly_formatted" ]; then
+	echo Please fix the following channel urls to be scannable:
+	echo "$not_correctly_formatted" | while read -r line; do
+		printf 'Given URI:\t%s\n' "$line"
+		printf 'Potentiall correct channel URI:\n\thttps://youtube.com/channel/%s\n' "$(curl "$line" -s | grep -Eo 'externalId":"[^"]*"' | sed 's|^externalId":"||; s|"||g')"
+	done
+	echo "They need to be in the 'https://www.youtube.com/channel/...' format"
+fi
+for channel_id in $IDs; do
+	echo "ID: $channel_id"
+	if [ -z "$LEGACYMODE" ]; then
+		json="$(curl -s "https://www.googleapis.com/youtube/v3/search?key=$APIKEY&channelId=$channel_id&part=snippet,id&order=date&maxResults=500")"
+		#Fallback to legacy mode if API quota is exceeded
+		if [ "$(echo "$json" | jq '."error"."errors"[]."reason"' 2> /dev/null )" = '"quotaExceeded"' ];then
+			echo "YT API Quota exceeded, using fallback"
+			LEGACYMODE=1
+		fi
+	elif [ -n "$LEGACYMODE" ];then
+		lynx --dump --nonumbers -listonly "https://www.youtube.com/channel/$channel_id" | grep 'videos.xml' | xargs curl -s > /tmp/"${channel_id}.xml"
+		python -c "from lxml import etree
+file=\"/tmp/${channel_id}.xml\"
+root = etree.parse(file)
+for el in root.iter():
+	if(el.tag in '{http://www.youtube.com/xml/schemas/2015}videoId'):
+		print(el.text)" |
+			sed 's/^/https:\/\/www\.youtube\.com\/watch\?v=/' | grep -vf "$BLACKLIST" >> /tmp/todownload$$
+		rm -f "/tmp/${channel_id}.xml"
+	else
+		echo "$json" | jq '."items"[].id."videoId"' | tr -d '"' | grep -v '^null$'| sed 's/^/https:\/\/www\.youtube\.com\/watch\?v=/' | grep -vf "$BLACKLIST" >> /tmp/todownload$$
+	fi
+done
+grep 'youtube' "$DLARCHIVE" | sed 's/youtube /https:\/\/www\.youtube\.com\/watch?v=/' > /tmp/alreadydownloaded$$
+
+##BITCHUTE
+#This section is quite generic and could probably be easily adapted for other video hosting websites
+echo "Scanning on Bitchute..."
+grep 'bitchute' "$CHANNELSFILE" | grep -v '^#' | xargs -L1 lynx --dump --nonumbers -listonly | grep 'bitchute\.com\/video' | sort -u | grep -vf "$BLACKLIST" >> /tmp/todownload$$
+grep 'bitchute' "$DLARCHIVE" | sed 's/bitchute /https:\/\/www\.bitchute\.com\/video\//' >> /tmp/alreadydownloaded$$
+
+##DOWNLOAD VIDEOS FROM ACCUMULATED LINKS
+grep -vf /tmp/alreadydownloaded$$ /tmp/todownload$$ | sort -u > /tmp/new_videos$$
+rm -f /tmp/alreadydownloaded$$ /tmp/todownload$$
+number=$(wc -l /tmp/new_videos$$ | cut -d ' ' -f 1 )
+if [ "$number" -gt 0 ]; then
+	[ "$number" -gt 1 ] && plural="s"
+	notify-send "Channel Ripper" "$number new video$plural available for download, downloading now."
+	echo  "$number new video$plural for download available, downloading now."
+	if [ "$number"  -lt 10 ];then
+		youtube-dl --get-filename -o "'%(uploader)s' '%(title)s'" -a /tmp/new_videos$$ | xargs -L1 notify-send
+	fi
+	youtube-dl --hls-prefer-native -i --download-archive "$DLARCHIVE" -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' --add-metadata -o "$DLLOC/%(uploader)s/%(upload_date)s-%(title)s.%(ext)s" -a /tmp/new_videos$$
+	rm -f /tmp/new_videos$$
+	notify-send "Channel Ripper" "Finished downloading"
+fi
+
+if [ "$number" -eq 0 ]; then
+	echo "No new videos"
+fi
