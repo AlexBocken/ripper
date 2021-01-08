@@ -66,7 +66,7 @@ for channel_id in $IDs; do
 			LEGACYMODE=1
 		fi
 	elif [ -n "$LEGACYMODE" ];then
-		lynx --dump --nonumbers -listonly "https://www.youtube.com/channel/$channel_id" | grep 'videos.xml' | xargs curl -s > /tmp/"${channel_id}.xml"
+		curl -s "https://www.youtube.com/feeds/videos.xml?channel_id=$channel_id"> /tmp/"${channel_id}.xml"
 		python -c "from lxml import etree
 file=\"/tmp/${channel_id}.xml\"
 root = etree.parse(file)
@@ -84,7 +84,11 @@ grep 'youtube' "$DLARCHIVE" | sed 's/youtube /https:\/\/www\.youtube\.com\/watch
 ##BITCHUTE
 #This section is quite generic and could probably be easily adapted for other video hosting websites
 echo "Scanning on Bitchute..."
-grep 'bitchute' "$CHANNELSFILE" | grep -v '^#' | xargs -L1 lynx --dump --nonumbers -listonly | grep 'bitchute\.com\/video' | sort -u | grep -vf "$BLACKLIST" >> /tmp/todownload$$
+BC_CHANNELS="$(grep 'bitchute' "$CHANNELSFILE" | grep -v '^#')"
+for channel in $BC_CHANNELS; do
+	printf 'BC channel: %s\n' "$( echo "$channel" | sed 's|https://www.bitchute.com/channel/||; s|/||')"
+	lynx --read_timeout=5 --dump --nonumbers -listonly "$channel"| grep 'bitchute\.com\/video' | sort -u | grep -vf "$BLACKLIST" >> /tmp/todownload$$
+done
 grep 'bitchute' "$DLARCHIVE" | sed 's/bitchute /https:\/\/www\.bitchute\.com\/video\//' >> /tmp/alreadydownloaded$$
 
 ##DOWNLOAD VIDEOS FROM ACCUMULATED LINKS
