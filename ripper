@@ -65,8 +65,9 @@ for channel_id in $IDs; do
 			echo "YT API Quota exceeded, using fallback"
 			LEGACYMODE=1
 		fi
-	elif [ -n "$LEGACYMODE" ];then
-		curl -s "https://www.youtube.com/feeds/videos.xml?channel_id=$channel_id"> /tmp/"${channel_id}.xml"
+	fi
+	if [ -n "$LEGACYMODE" ];then
+		curl -s "https://www.youtube.com/feeds/videos.xml?channel_id=$channel_id" > /tmp/"${channel_id}.xml"
 		python -c "from lxml import etree
 file=\"/tmp/${channel_id}.xml\"
 root = etree.parse(file)
