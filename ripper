@@ -52,12 +52,12 @@ if [  -n "$not_correctly_formatted" ]; then
 	echo Please fix the following channel urls to be scannable:
 	echo "$not_correctly_formatted" | while read -r line; do
 		printf 'Given URI:\t%s\n' "$line"
-		printf 'Potentiall correct channel URI:\n\thttps://youtube.com/channel/%s\n' "$(curl "$line" -s | grep -Eo 'externalId":"[^"]*"' | sed 's|^externalId":"||; s|"||g')"
+		printf 'Potentially correct channel URI:\n\thttps://www.youtube.com/channel/%s\n' "$(curl "$line" -s | grep -Eo 'externalId":"[^"]*"' | sed 's|^externalId":"||; s|"||g')"
 	done
 	echo "They need to be in the 'https://www.youtube.com/channel/...' format"
 fi
 for channel_id in $IDs; do
-	echo "ID: $channel_id"
+	echo "YT-ID: $channel_id"
 	if [ -z "$LEGACYMODE" ]; then
 		json="$(curl -s "https://www.googleapis.com/youtube/v3/search?key=$APIKEY&channelId=$channel_id&part=snippet,id&order=date&maxResults=500")"
 		#Fallback to legacy mode if API quota is exceeded
