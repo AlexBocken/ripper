@@ -18,3 +18,8 @@ After `git clone`ing this repo, run the helper `installer`
 ```sh
 ./installer install
 ```
+
+## Features to come
+
+- Odysee support
+- Peertube support -> could just be done via RSS feeds
