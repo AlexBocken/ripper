@@ -77,7 +77,11 @@ for el in root.iter():
 			sed 's/^/https:\/\/www\.youtube\.com\/watch\?v=/' | grep -vf "$BLACKLIST" >> /tmp/todownload$$
 		rm -f "/tmp/${channel_id}.xml"
 	else
-		echo "$json" | jq '."items"[].id."videoId"' | tr -d '"' | grep -v '^null$'| sed 's/^/https:\/\/www\.youtube\.com\/watch\?v=/' | grep -vf "$BLACKLIST" >> /tmp/todownload$$
+		#Only try to download videos, not sheduled livestreams
+		echo "$json" | jq '.items[] | select(.snippet.liveBroadcastContent != "upcoming") | .id.videoId' |
+			tr -d '"' | grep -v '^null$'|
+			sed 's/^/https:\/\/www\.youtube\.com\/watch\?v=/' |
+			grep -vf "$BLACKLIST" >> /tmp/todownload$$
 	fi
 done
 grep 'youtube' "$DLARCHIVE" | sed 's/youtube /https:\/\/www\.youtube\.com\/watch?v=/' > /tmp/alreadydownloaded$$
