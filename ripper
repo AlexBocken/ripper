@@ -107,7 +107,7 @@ grep 'bitchute' "$DLARCHIVE" | sed 's/bitchute /https:\/\/www\.bitchute\.com\/vi
 
 ##PEERTUBE
 echo "Scanning Peertube instances..."
-PT_CHANNELS="$(grep -Ev '(bichute|youtube)' $CHANNELSFILE | grep -v '^#')"
+PT_CHANNELS="$(grep -Ev '(bitchute|youtube)' $CHANNELSFILE | grep -v '^#')"
 for channel in $PT_CHANNELS; do
 	printf 'PT channel: %s\n' "$channel"
 	channelxml="$(curl -s "$channel")"
