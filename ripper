@@ -80,6 +80,7 @@ for channel_id in $IDs; do
 			grep -vf "$BLACKLIST" >> /tmp/todownload$$
 		fi
 	else
+		[ -z "$json" ] && continue
 		if [ "$(echo "$json" | jq '.pageInfo.totalResults')" -eq 0 ];then
 			echo "Grabbing API data for channel returend no results"
 			echo "Is https://youtube.com/channel/$channel_id still up?"
