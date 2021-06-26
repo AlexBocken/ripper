@@ -67,15 +67,10 @@ for channel_id in $IDs; do
 		fi
 	fi
 	if [ -n "$LEGACYMODE" ];then
-		curl -s "https://www.youtube.com/feeds/videos.xml?channel_id=$channel_id" > /tmp/"${channel_id}.xml"
-		python -c "from lxml import etree
-file=\"/tmp/${channel_id}.xml\"
-root = etree.parse(file)
-for el in root.iter():
-	if(el.tag in '{http://www.youtube.com/xml/schemas/2015}videoId'):
-		print(el.text)" |
-			sed 's/^/https:\/\/www\.youtube\.com\/watch\?v=/' | grep -vf "$BLACKLIST" >> /tmp/todownload$$
-		rm -f "/tmp/${channel_id}.xml"
+		curl -s "https://www.youtube.com/feeds/videos.xml?channel_id=$channel_id" |
+			xml2 | grep '^/feed/entry/yt:videoId=' |
+			sed 's|^\/feed\/entry\/yt:videoId=|https:\/\/www\.youtube\.com\/watch\?v=|' |
+			grep -vf "$BLACKLIST" >> /tmp/todownload$$
 	else
 		#Only try to download videos, not sheduled livestreams
 		echo "$json" | jq '.items[] | select(.snippet.liveBroadcastContent != "upcoming") | .id.videoId' |
