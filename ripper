@@ -105,6 +105,20 @@ for channel in $BC_CHANNELS; do
 done
 grep 'bitchute' "$DLARCHIVE" | sed 's/bitchute /https:\/\/www\.bitchute\.com\/video\//' >> /tmp/alreadydownloaded$$
 
+##PEERTUBE
+echo "Scanning Peertube instances..."
+PT_CHANNELS="$(grep -Ev '(bichute|youtube)' $CHANNELSFILE | grep -v '^#')"
+for channel in $PT_CHANNELS; do
+	printf 'PT channel: %s\n' "$channel"
+	channelxml="$(curl -s "$channel")"
+	todownload="$(echo "$channelxml" | xml2 | grep '^/rss/channel/item/link=' | sed 's|^/rss/channel/item/link=||' | sort -u | grep -vf "$BLACKLIST" | tee -ai /tmp/todownload$$)"
+	#might not be always correct for all peertube instances?
+	channelinstance="$(echo "$channelxml" | xml2 | grep '^/rss/channel/link=' | sed 's|^/rss/channel/link=||')"
+	#creates fake video links for other instances but shouldn't be an issue
+	grep -E 'peertube' "$DLARCHIVE" | sed "s|peertube |$channelinstance/videos/watch/|" | grep "$todownload" >> /tmp/alreadydownloaded$$
+done
+
+
 ##DOWNLOAD VIDEOS FROM ACCUMULATED LINKS
 grep -vf /tmp/alreadydownloaded$$ /tmp/todownload$$ | sort -u > /tmp/new_videos$$
 rm -f /tmp/alreadydownloaded$$ /tmp/todownload$$
@@ -120,6 +134,7 @@ if [ "$number" -gt 0 ]; then
 	rm -f /tmp/new_videos$$
 	notify-send "Channel Ripper" "Finished downloading"
 fi
+
 
 if [ "$number" -eq 0 ]; then
 	echo "No new videos"
