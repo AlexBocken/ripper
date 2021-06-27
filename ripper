@@ -7,8 +7,7 @@
 #Keep this in mind when running it as a cronjob
 #Either insert this key in plain text below at the variable "APIKEY" or do it via ENV vars or a password manager
 #Since bitchute still doesn't have an API I'm using lynx to emulate a user.
-#This can limit the number of recent videos available. For a whole download of bitchute channels consider other methods first.
-#For youtube the videos per channel are limited to the last 500 uploaded videos (via API).
+#This can limit the number of recent videos available. For a whole download of bitchute channels consider other methods first.  #For youtube the videos per channel are limited to the last 500 uploaded videos (via API).
 #Without API access it's limited to the last 15 videos.
 #For the rest you can just use youtube-dl with `youtube-dl <channel>`
 
@@ -36,6 +35,19 @@ export GTK2_RC_FILES="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-2.0/gtkrc-2.0"
 
 APIKEY="$(pass show Misc/Youtube\ Data\ API\ v3 | head -n1)"
 LEGACYMODE=$1 #set to anything nonzero to ignore YT API
+
+
+if [ "$1" = "edit" ]; then
+	case $2 in
+		"blacklist") ${EDITOR:-vim} "$BLACKLIST";;
+		"channels") ${EDITOR:-vim} "$CHANNELSFILE";;
+		"downloaded") ${EDITOR:-vim} "$DLARCHIVE";;
+		*) printf "invalid argument. options:\nedit blacklist/channels/downloaded\n";;
+	esac
+	exit
+fi
+
+
 
 [ -z "$APIKEY" ] && LEGACYMODE=1
 [ -n "$LEGACYMODE" ] && printf "Using YT Legacy fallback mode...\nThis is less reliable than the API requests.\nOnly expect to find the last 15 videos or so per channel\n"
@@ -109,7 +121,7 @@ grep 'bitchute' "$DLARCHIVE" | sed 's/bitchute /https:\/\/www\.bitchute\.com\/vi
 
 ##PEERTUBE
 echo "Scanning Peertube instances..."
-PT_CHANNELS="$(grep -Ev '(bitchute|youtube)' $CHANNELSFILE | grep -v '^#')"
+PT_CHANNELS="$(grep -Ev '(bitchute|youtube)' "$CHANNELSFILE" | grep -v '^#')"
 for channel in $PT_CHANNELS; do
 	printf 'PT channel: %s\n' "$channel"
 	channelxml="$(curl -s "$channel")"
