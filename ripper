@@ -34,7 +34,7 @@ export PASSWORD_STORE_GPG_OPTS="--homedir=$XDG_DATA_HOME/gnupg"
 export GTK2_RC_FILES="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-2.0/gtkrc-2.0"
 [ -d "$HOME/.local/share/password-store" ] && export PASSWORD_STORE_DIR="$HOME/.local/share/password-store"
 
-APIKEY="$(pass show Misc/Youtube\ Data\ API\ v3 | head -n1 )"
+APIKEY="$(pass show Misc/Youtube\ Data\ API\ v3 | head -n1)"
 LEGACYMODE=$1 #set to anything nonzero to ignore YT API
 
 [ -z "$APIKEY" ] && LEGACYMODE=1
@@ -49,7 +49,7 @@ echo "Scanning for new Videos to download"
 
 ##YOUTUBE
 echo "Scanning on YouTube..."
-IDs="$( grep 'youtube' "$CHANNELSFILE" | grep -v '^#' | grep 'channel' | sed 's/https:\/\/www\.youtube\.com\/channel\///')"
+IDs="$(grep 'youtube' "$CHANNELSFILE" | grep -v '^#' | grep 'channel' | sed 's/https:\/\/www\.youtube\.com\/channel\///')"
 not_correctly_formatted="$(grep 'youtube' "$CHANNELSFILE" | grep -v '^#' | grep -v 'https:\/\/www\.youtube\.com\/channel\/')"
 if [  -n "$not_correctly_formatted" ]; then
 	echo Please fix the following channel urls to be scannable:
@@ -65,13 +65,13 @@ for channel_id in $IDs; do
 		json="$(curl -s "https://www.googleapis.com/youtube/v3/search?key=$APIKEY&channelId=$channel_id&part=snippet,id&order=date&maxResults=500")"
 
 		#Fallback to legacy mode if API quota is exceeded
-		if [ "$(echo "$json" | jq '."error"."errors"[]."reason"' 2> /dev/null )" = '"quotaExceeded"' ];then
+		if [ "$(echo "$json" | jq '."error"."errors"[]."reason"' 2> /dev/null)" = '"quotaExceeded"' ];then
 			echo "YT API Quota exceeded, using fallback"
 			LEGACYMODE=1
 		fi
 	fi
 	if [ -n "$LEGACYMODE" ];then
-		channelxml="$( curl -s "https://www.youtube.com/feeds/videos.xml?channel_id=$channel_id" )"
+		channelxml="$(curl -s "https://www.youtube.com/feeds/videos.xml?channel_id=$channel_id")"
 		if echo "$channelxml" | grep -q '<title>Error 404 (Not Found)!!1</title>'
 		then
 			echo "Grabbing rss feed for channel failed"
@@ -102,7 +102,7 @@ grep 'youtube' "$DLARCHIVE" | sed 's/youtube /https:\/\/www\.youtube\.com\/watch
 echo "Scanning on Bitchute..."
 BC_CHANNELS="$(grep 'bitchute' "$CHANNELSFILE" | grep -v '^#')"
 for channel in $BC_CHANNELS; do
-	printf 'BC channel: %s\n' "$( echo "$channel" | sed 's|https://www.bitchute.com/channel/||; s|/||')"
+	printf 'BC channel: %s\n' "$(echo "$channel" | sed 's|https://www.bitchute.com/channel/||; s|/||')"
 	lynx --read_timeout=5 --dump --nonumbers -listonly "$channel"| grep 'bitchute\.com\/video' | sort -u | grep -vf "$BLACKLIST" >> /tmp/todownload$$
 done
 grep 'bitchute' "$DLARCHIVE" | sed 's/bitchute /https:\/\/www\.bitchute\.com\/video\//' >> /tmp/alreadydownloaded$$
@@ -124,7 +124,7 @@ done
 ##DOWNLOAD VIDEOS FROM ACCUMULATED LINKS
 grep -vf /tmp/alreadydownloaded$$ /tmp/todownload$$ | sort -u > /tmp/new_videos$$
 rm -f /tmp/alreadydownloaded$$ /tmp/todownload$$
-number=$(wc -l < /tmp/new_videos$$ )
+number=$(wc -l < /tmp/new_videos$$)
 if [ "$number" -gt 0 ]; then
 	[ "$number" -gt 1 ] && plural="s"
 	notify-send "Channel Ripper" "$number new video$plural available for download, downloading now."
