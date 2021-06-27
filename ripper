@@ -8,7 +8,9 @@
 #Either insert this key in plain text below at the variable "APIKEY" or do it via ENV vars or a password manager
 #Since bitchute still doesn't have an API I'm using lynx to emulate a user.
 #This can limit the number of recent videos available. For a whole download of bitchute channels consider other methods first.
-#For youtube the videos per channel are limited to the last 500 uploaded videos. For the rest you can just use youtube-dl itself
+#For youtube the videos per channel are limited to the last 500 uploaded videos (via API).
+#Without API access it's limited to the last 15 videos.
+#For the rest you can just use youtube-dl with `youtube-dl <channel>`
 
 #needed if run as cronjob
 XDG_VIDEOS_DIR=$HOME/vids #TODO ADJUST FOR PERSONAL USE HERE!
@@ -35,7 +37,8 @@ export GTK2_RC_FILES="${XDG_CONFIG_HOME:-$HOME/.config}/gtk-2.0/gtkrc-2.0"
 APIKEY="$(pass show Misc/Youtube\ Data\ API\ v3 | head -n1 )"
 LEGACYMODE=$1 #set to anything nonzero to ignore YT API
 
-[ -n "$LEGACYMODE" ] && printf "Using YT Legacy fallback mode...\nThis is less reliable than the API requests.\nOnly expect to find the last 5 videos or so per channel\n"
+[ -z "$APIKEY" ] && LEGACYMODE=1
+[ -n "$LEGACYMODE" ] && printf "Using YT Legacy fallback mode...\nThis is less reliable than the API requests.\nOnly expect to find the last 15 videos or so per channel\n"
 if [ "$(pgrep -c ripper)" -gt 1 ]; then
 	echo "Ripper already running, exiting new instance..."
 	exit
@@ -45,7 +48,7 @@ echo "Scanning for new Videos to download"
 
 
 ##YOUTUBE
-echo "Scanning on Youtube..."
+echo "Scanning on YouTube..."
 IDs="$( grep 'youtube' "$CHANNELSFILE" | grep -v '^#' | grep 'channel' | sed 's/https:\/\/www\.youtube\.com\/channel\///')"
 not_correctly_formatted="$(grep 'youtube' "$CHANNELSFILE" | grep -v '^#' | grep -v 'https:\/\/www\.youtube\.com\/channel\/')"
 if [  -n "$not_correctly_formatted" ]; then
@@ -60,7 +63,6 @@ for channel_id in $IDs; do
 	echo "YT-ID: $channel_id"
 	if [ -z "$LEGACYMODE" ]; then
 		json="$(curl -s "https://www.googleapis.com/youtube/v3/search?key=$APIKEY&channelId=$channel_id&part=snippet,id&order=date&maxResults=500")"
-
 
 		#Fallback to legacy mode if API quota is exceeded
 		if [ "$(echo "$json" | jq '."error"."errors"[]."reason"' 2> /dev/null )" = '"quotaExceeded"' ];then
@@ -122,7 +124,7 @@ done
 ##DOWNLOAD VIDEOS FROM ACCUMULATED LINKS
 grep -vf /tmp/alreadydownloaded$$ /tmp/todownload$$ | sort -u > /tmp/new_videos$$
 rm -f /tmp/alreadydownloaded$$ /tmp/todownload$$
-number=$(wc -l /tmp/new_videos$$ | cut -d ' ' -f 1 )
+number=$(wc -l < /tmp/new_videos$$ )
 if [ "$number" -gt 0 ]; then
 	[ "$number" -gt 1 ] && plural="s"
 	notify-send "Channel Ripper" "$number new video$plural available for download, downloading now."
@@ -131,10 +133,9 @@ if [ "$number" -gt 0 ]; then
 		youtube-dl --get-filename -o "'%(uploader)s' '%(title)s'" -a /tmp/new_videos$$ | xargs -L1 notify-send
 	fi
 	youtube-dl --hls-prefer-native -i --download-archive "$DLARCHIVE" -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' --add-metadata -o "$DLLOC/%(uploader)s/%(upload_date)s-%(title)s.%(ext)s" -a /tmp/new_videos$$
-	rm -f /tmp/new_videos$$
 	notify-send "Channel Ripper" "Finished downloading"
 fi
-
+rm -f /tmp/new_videos$$
 
 if [ "$number" -eq 0 ]; then
 	echo "No new videos"
