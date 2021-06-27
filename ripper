@@ -88,8 +88,8 @@ for channel_id in $IDs; do
 			echo "Is https://youtube.com/channel/$channel_id still up?"
 		else
 		#Only try to download videos, not sheduled livestreams
-		echo "$json" | jq '.items[] | select(.snippet.liveBroadcastContent != "upcoming") | .id.videoId' |
-			tr -d '"' | grep -v '^null$'|
+		echo "$json" | jq '.items[] | select(.snippet.liveBroadcastContent != "upcoming") | select(.id.videoId != null) |.id.videoId' |
+			tr -d '"' |
 			sed 's/^/https:\/\/www\.youtube\.com\/watch\?v=/' |
 			grep -vf "$BLACKLIST" >> /tmp/todownload$$
 		fi
