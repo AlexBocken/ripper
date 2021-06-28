@@ -75,7 +75,6 @@ for channel_id in $IDs; do
 	echo "YT-ID: $channel_id"
 	if [ -z "$LEGACYMODE" ]; then
 		json="$(curl -s "https://www.googleapis.com/youtube/v3/search?key=$APIKEY&channelId=$channel_id&part=snippet,id&order=date&maxResults=500")"
-
 		#Fallback to legacy mode if API quota is exceeded
 		if [ "$(echo "$json" | jq '."error"."errors"[]."reason"' 2> /dev/null)" = '"quotaExceeded"' ];then
 			echo "YT API Quota exceeded, using fallback"
@@ -142,7 +141,7 @@ if [ "$number" -gt 0 ]; then
 	notify-send "Channel Ripper" "$number new video$plural available for download, downloading now."
 	echo  "$number new video$plural for download available, downloading now."
 	if [ "$number"  -lt 10 ];then
-		youtube-dl --get-filename -o "'%(uploader)s' '%(title)s'" -a /tmp/new_videos$$ | xargs -L1 notify-send
+		youtube-dl --get-filename -o "'%(uploader)s' '%(title)s'" -a /tmp/new_videos$$ | xargs -L1 notify-send &
 	fi
 	youtube-dl --hls-prefer-native -i --download-archive "$DLARCHIVE" -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' --add-metadata -o "$DLLOC/%(uploader)s/%(upload_date)s-%(title)s.%(ext)s" -a /tmp/new_videos$$
 	notify-send "Channel Ripper" "Finished downloading"
